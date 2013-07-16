@@ -1,7 +1,7 @@
 import socket
 import struct
 
-class pymtm():
+class pymtm(object):
 	def __init__(self):
 		self._socket = socket.socket()
 		self._endianess = '!h'
@@ -39,7 +39,7 @@ class pymtm():
 
 	def read_message(self):
 		len_str = self._socket.recv(2)
-		if not len_str : return nil
+		if not len_str : return None
 		length = struct.unpack(self._endianess, len_str)[0]
 		length -= 2
 		message = ''
