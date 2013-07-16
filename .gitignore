@@ -1,0 +1,5 @@
+# OSX crap
+.DS_Store
+
+# compiled python
+*.pyc
