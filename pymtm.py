@@ -25,10 +25,29 @@ class pymtm():
 	def connect(self, host, port):
 		self._socket.connect((host, port))
 
+	def close(self):
+		self._socket.close()
+
 	def exchange_message(self, message):
-		message_to_send = _message_header(len(message)) + message
+		self.send_message(message)
+		return self.read_message()
+
+	def send_message(self, message):
+		header = struct.pack(self._endianess, len(message) + 2)
+		message_to_send = header + message
 		self._socket.send(message_to_send)
 
-	def _message_header(self, message_length):
-		return struct.pack(self._endianess, message_length + 2)
-
+	def read_message(self):
+		len_str = self._socket.recv(2)
+		if not len_str : return nil
+		length = struct.unpack(self._endianess, len_str)[0]
+		length -= 2
+		message = ''
+		read_count = 0
+		while read_count < length:
+			read_block = min(length - read_count,1024)
+			partial_message = self._socket.recv(read_block)
+			read_count += len(partial_message)
+			if not partial_message : break
+			message += partial_message
+		return message
