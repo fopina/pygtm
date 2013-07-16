@@ -18,31 +18,42 @@ class pyprofile(pymtm):
 
 		self._svtyp = server_type
 
-		# Acquire Token
-		# TODO what is this message? (it simply works!)
+		# Sign on (and acquire token)
+		'''
+		#define srv_prc   0
+		#define user_id   1
+		#define stn_id    2
+		#define user_pwd  3
+		#define inst_id   4
+		#define fap_ids   5
+		#define context   6
+		'''
 
-		msg = '\x02\x34\x02\x31\x01\x01\x01\x01\x04\x03\x02\x35\x01'
-		result = self.exchange_message(SERV_CLASS_SIGNON, msg)
+		msg_arr = [
+			'1',
+			user,
+			'nowhere', # TLO
+			password,
+			'',
+			'',
+			'\x15\x025\x06ICODE\x021\x08PREPARE\x023', # context
+		]
 
-		if result[0] == '1':
-			raise Exception(result[1:])
+		result = self.exchange_message(SERV_CLASS_SIGNON, self._pack_v2lv(msg_arr))
 
-		return
+		if result[0] != '0':
+			raise Exception('MTM_ERROR',result[1:])
 
-		# TODO unravel the rest of the fields...
-
-		result_arr = self._unpack_lv2v(result)
-		result_arr = self._unpack_lv2v(result_arr[0])
+		result_arr = self._unpack_lv2v(result[1:])
 		result_arr = self._unpack_lv2v(result_arr[1])
+		error_code = result_arr[0]
+		result_arr = self._unpack_lv2v(result_arr[1]) # one extra unpack for both error handling and normal flow
+
+		if error_code != '0':
+			raise Exception(result_arr[2],result_arr[4])
+
 		result_arr = self._unpack_lv2v(result_arr[1])
 		self._token = result_arr[0]
-
-		# signon message (to PBSNMSP)
-		# (now it's all in the MTMJOURNAL...)
-
-		msg = '\x025\x021\x13fopina JDBC driver!770e80cbe87d04efe5e01ab4f43c07f3\x01\x01\x16\x15\x025\x08PREPARE\x021\x06ICODE\x021\x01'
-		result = self.exchange_message(SERV_CLASS_SIGNON, msg)
-		print result
 
 	def exchange_message(self, service_class, message):
 		# MTM header
@@ -85,6 +96,9 @@ class pyprofile(pymtm):
 		i = 0
 		while i < len(packed_string):
 			l = ord(packed_string[i])
+			if l == 0:
+				i += 1
+				continue
 			ret_array.append(packed_string[ i+1 : i+l ])
 			i += l
 		return ret_array

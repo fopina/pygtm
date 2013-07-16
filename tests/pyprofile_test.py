@@ -14,7 +14,5 @@ user = '1'
 pwd = 'XXX'
 server_type = 'SCA$IBS'
 
-msg = "echo 123"
-
 profile.connect(host, port, server_type, user, pwd)
 profile.close()
