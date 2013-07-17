@@ -43,6 +43,7 @@ class pyprofile(pymtm):
 		result = self.exchange_message(SERV_CLASS_SIGNON, self._pack_v2lv(msg_arr))
 
 		result_arr = self._check_error(result)
+		result_arr = self._unpack_lv2v(result_arr[1])
 
 		self._token = result_arr[0]
 
@@ -93,6 +94,7 @@ class pyprofile(pymtm):
 		result = self.exchange_message(SERV_CLASS_SQL, self._pack_v2lv(msg_arr))
 
 		result_arr = self._check_error(result)
+		result_arr = self._unpack_lv2v(result_arr[1])
 
 		count = result_arr[2]
 
@@ -111,6 +113,24 @@ class pyprofile(pymtm):
 
 
 		return (result,types)
+
+	def executeMRPC(self,mrpc_id,*args):
+		# TODO make version number an argument
+		version = '1' 
+
+		params = self._pack_v2lv(args)
+		msg_arr = [
+			mrpc_id,
+			version,
+			params,
+			'\x04\x03\x021', # dunno
+		]
+
+		result = self.exchange_message(SERV_CLASS_MRPC, self._pack_v2lv(msg_arr))
+
+		result_arr = self._check_error(result)
+
+		return result_arr[1]
 
 	def exchange_message(self, service_class, message):
 		# MTM header
@@ -154,21 +174,20 @@ class pyprofile(pymtm):
 
 		result_arr = self._unpack_lv2v(packed_string[1:])
 		result_arr = self._unpack_lv2v(result_arr[1])
-		error_code = result_arr[0]
-		result_arr = self._unpack_lv2v(result_arr[1]) # one extra unpack for both error handling and normal flow
-		if error_code != '0':
+		
+		if result_arr[0] != '0':
+			result_arr = self._unpack_lv2v(result_arr[1])
 			raise Exception(result_arr[2],result_arr[4])
+
 		return result_arr
 
 	def _unpack_lv2v(self, packed_string):
 		ret_array = []
 		i = 0
 		while i < len(packed_string):
-			l = ord(packed_string[i])
-			if l == 0:
-				i += 1
-				continue
-			ret_array.append(packed_string[ i+1 : i+l ])
+			(l,o) = self._calc_size(packed_string,i)
+			i += o
+			ret_array.append(packed_string[ i : i+l ])
 			i += l
 		return ret_array
 
@@ -177,3 +196,23 @@ class pyprofile(pymtm):
 		for s in unpacked_array:
 			message += chr(len(s)+1) + s
 		return message
+
+	def _calc_size(self, message, start_index = 0):
+		len_attempt = ord(message[start_index])
+		offset = 1
+
+		if len_attempt != 0:
+			return (len_attempt - 1, offset)
+
+		start_index += 1
+		len_len = ord(message[start_index])
+
+		total_len = 0
+		start_index += 1
+		for byte_ind in xrange(len_len):
+			total_len *= 256
+			total_len += ord(message[start_index + byte_ind])
+
+		offset += 1 + len_len
+
+		return (total_len - len_len, offset)
