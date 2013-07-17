@@ -55,9 +55,38 @@ class pyprofile(pymtm):
 		else:
 			final_sql = query
 
+
+		sql_modifiers = '/ROWS=%d' % self.max_rows
+
+		# Replace "?" with host variables
+		# TODO desperate need of actual parsing and validation
+		# TODO INSERT ... VALUES (?,?,?...) are not covered
+		if len(args) > 0:
+			host_variables = []
+			temp_sql = final_sql.replace('=?','= ?')
+			final_sql = ''
+			i = temp_sql.find('= ?')
+			old_i = 0
+			variable_id = 1
+			while i > -1:
+				variable_str = 'C%d' % variable_id
+				final_sql += temp_sql[old_i : i] + '= :' + variable_str
+				old_i = i + 3
+				try:
+					host_variables.append('%s=\'%s\'' % (variable_str, args[variable_id - 1]))
+				except IndexError:
+					raise Exception('VAL_ERROR','More markers than variables')
+				variable_id += 1
+				i = temp_sql.find('= ?',old_i)
+
+			if variable_id != (len(args) + 1):
+				raise Exception('VAL_ERROR','More variables than markers')
+
+			sql_modifiers += '/USING=(%s)' % ','.join(host_variables)
+
 		msg_arr = [
 			final_sql, # query
-			'/ROWS=%d' % self.max_rows, # modifiers?
+			sql_modifiers,
 			'', # ?
 		]
 
