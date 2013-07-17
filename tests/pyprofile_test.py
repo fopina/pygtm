@@ -15,4 +15,6 @@ pwd = 'XXX'
 server_type = 'SCA$IBS'
 
 profile.connect(host, port, server_type, user, pwd)
+rows,col_types = profile.executeSQL('SELECT EVENT,DESC FROM UTBLEVENT')
+assert col_types == ['T','T']
 profile.close()

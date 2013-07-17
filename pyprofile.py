@@ -12,6 +12,7 @@ class pyprofile(pymtm):
 		self._token = None
 		self._svtyp = None
 		self._msgid = 0
+		self.max_rows = 30
 
 	def connect(self, host, port, server_type, user, password):
 		super(pyprofile, self).connect(host, port)
@@ -41,19 +42,46 @@ class pyprofile(pymtm):
 
 		result = self.exchange_message(SERV_CLASS_SIGNON, self._pack_v2lv(msg_arr))
 
-		if result[0] != '0':
-			raise Exception('MTM_ERROR',result[1:])
+		result_arr = self._check_error(result)
 
-		result_arr = self._unpack_lv2v(result[1:])
-		result_arr = self._unpack_lv2v(result_arr[1])
-		error_code = result_arr[0]
-		result_arr = self._unpack_lv2v(result_arr[1]) # one extra unpack for both error handling and normal flow
-
-		if error_code != '0':
-			raise Exception(result_arr[2],result_arr[4])
-
-		result_arr = self._unpack_lv2v(result_arr[1])
 		self._token = result_arr[0]
+
+	def executeSQL(self,query,*args):
+		cursor_id = 0
+		final_sql = ''
+		if query[:6].lower() == 'select':
+			cursor_id = int(time.time())
+			final_sql = 'OPEN CURSOR %d AS %s' % (cursor_id, query)
+		else:
+			final_sql = query
+
+		msg_arr = [
+			final_sql, # query
+			'/ROWS=%d' % self.max_rows, # modifiers?
+			'', # ?
+		]
+
+		result = self.exchange_message(SERV_CLASS_SQL, self._pack_v2lv(msg_arr))
+
+		result_arr = self._check_error(result)
+
+		count = result_arr[2]
+
+		result = result_arr[3].split('\r\n')
+
+		types = list(result_arr[5].split('|')[0])
+
+		if cursor_id > 0:
+			msg_arr = [
+				'CLOSE %d' % cursor_id, # query
+				'',
+				'',
+			]
+			# ignored
+			_ = self.exchange_message(SERV_CLASS_SQL, self._pack_v2lv(msg_arr))
+
+
+		return (result,types)
 
 	def exchange_message(self, service_class, message):
 		# MTM header
@@ -71,14 +99,14 @@ class pyprofile(pymtm):
 
 		msg_arr = [
 			service_class,
-			'',
+			self._token,
 			str(self._msgid),
 			'0',
 			'',
 		]
 
-		if service_class != SERV_CLASS_SIGNON:
-			msg_arr[1] = self._token
+		if service_class == SERV_CLASS_SIGNON:
+			msg_arr[1] = ''
 
 		msg_arr = [
 			self._pack_v2lv(msg_arr),
@@ -90,6 +118,18 @@ class pyprofile(pymtm):
 		self._msgid += 1
 
 		return super(pyprofile, self).exchange_message(msg)
+
+	def _check_error(self, packed_string):
+		if packed_string[0] != '0':
+			raise Exception('MTM_ERROR',packed_string[1:])
+
+		result_arr = self._unpack_lv2v(packed_string[1:])
+		result_arr = self._unpack_lv2v(result_arr[1])
+		error_code = result_arr[0]
+		result_arr = self._unpack_lv2v(result_arr[1]) # one extra unpack for both error handling and normal flow
+		if error_code != '0':
+			raise Exception(result_arr[2],result_arr[4])
+		return result_arr
 
 	def _unpack_lv2v(self, packed_string):
 		ret_array = []
