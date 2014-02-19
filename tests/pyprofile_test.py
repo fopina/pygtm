@@ -15,8 +15,8 @@ server_type = 'SCA$IBS'
 ###################################
 
 def test_sql():
-	profile = pyprofile.pyprofile()
-	profile.connect(host, port, server_type, user, pwd)
+	profile = pyprofile.pyprofile(server_type)
+	profile.connect(host, port, user, pwd)
 
 	# backup current ICITY
 	rows,col_types = profile.executeSQL('SELECT ICITY FROM CUVAR')
@@ -39,8 +39,8 @@ def test_sql():
 	profile.close()
 
 def test_mrpc():
-	profile = pyprofile.pyprofile()
-	profile.connect(host, port, server_type, user, pwd)
+	profile = pyprofile.pyprofile(server_type)
+	profile.connect(host, port, user, pwd)
 
 	# test MRPCs (only 121 and 155 available in core PIP)
 	# using 155 for assertion, returns an SQL query response formatted in HTML
