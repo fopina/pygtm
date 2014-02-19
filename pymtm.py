@@ -2,8 +2,12 @@ import socket
 import struct
 
 class pymtm(object):
-	def __init__(self):
+	'''
+	svtype 
+	'''
+	def __init__(self, server_type = None):
 		self._socket = socket.socket()
+		self._server_type = server_type
 		self._endianess = '!h'
 
 	'''
@@ -33,6 +37,9 @@ class pymtm(object):
 		return self.read_message()
 
 	def send_message(self, message):
+		if self._server_type:
+			message = self._server_type + '\x1c' + message
+
 		header = struct.pack(self._endianess, len(message) + 2)
 		message_to_send = header + message
 		self._socket.send(message_to_send)

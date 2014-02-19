@@ -7,17 +7,14 @@ SERV_CLASS_MRPC   = '3'
 
 class pyprofile(pymtm):
 
-	def __init__(self):
-		pymtm.__init__(self)
+	def __init__(self, server_type = None):
+		pymtm.__init__(self, server_type)
 		self._token = None
-		self._svtyp = None
 		self._msgid = 0
 		self.max_rows = 30
 
-	def connect(self, host, port, server_type, user, password):
+	def connect(self, host, port, user, password):
 		super(pyprofile, self).connect(host, port)
-
-		self._svtyp = server_type
 
 		# Sign on (and acquire token)
 		'''
@@ -133,9 +130,6 @@ class pyprofile(pymtm):
 		return result_arr[1]
 
 	def exchange_message(self, service_class, message):
-		# MTM header
-		msg = self._svtyp + '\x1c'
-
 		# Message Header
 		'''
 		From libsql.h (for reference):
@@ -162,11 +156,9 @@ class pyprofile(pymtm):
 			message,
 		]
 
-		msg += self._pack_v2lv(msg_arr)
-
 		self._msgid += 1
 
-		return super(pyprofile, self).exchange_message(msg)
+		return super(pyprofile, self).exchange_message(self._pack_v2lv(msg_arr))
 
 	def _check_error(self, packed_string):
 		if packed_string[0] != '0':
