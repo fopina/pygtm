@@ -1,3 +1,10 @@
+Deprecated
+----------
+
+Re-factored (and renamed) as proper package in https://github.com/fopina/pyfispip
+
+Repository kept for reference
+
 pygtm
 =====
 
